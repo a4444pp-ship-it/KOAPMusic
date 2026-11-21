@@ -506,7 +506,7 @@ class Thumbnail:
             # 6. Bottom corner credits (left & right corners)
             credit_y = h - 38
             left_credit = "Powered by KOAP Music @ KoAPmusic_bot"
-            right_credit = "Created By KOAP @AP109100"
+            right_credit = "Created By KOAP @AP109110"
 
             draw.text(
                 (56, credit_y),
