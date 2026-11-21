@@ -7,6 +7,7 @@ from pyrogram import types
 
 from anony import app, config, lang
 from anony.core.lang import lang_codes
+from anony.helpers._premium_emoji import BLANK_BTN_TEXT, pbtn
 
 
 class Inline:
@@ -15,7 +16,9 @@ class Inline:
         self.ikb = types.InlineKeyboardButton
 
     def cancel_dl(self, text) -> types.InlineKeyboardMarkup:
-        return self.ikm([[self.ikb(text=text, callback_data=f"cancel_dl")]])
+        return self.ikm(
+            [[pbtn(text=text, emoji="TRASH", style="DANGER", callback_data="cancel_dl")]]
+        )
 
     def controls(
         self,
@@ -27,58 +30,74 @@ class Inline:
         keyboard = []
 
         if status:
-            keyboard.append([
-                self.ikb(
-                    text=status,
-                    callback_data=f"controls status {chat_id}",
-                    style="primary",
-                )
-            ])
+            keyboard.append(
+                [
+                    pbtn(
+                        text=status,
+                        emoji="PLAY_CIRCLE",
+                        style="PRIMARY",
+                        callback_data=f"controls status {chat_id}",
+                    )
+                ]
+            )
         elif timer:
-            keyboard.append([
-                self.ikb(
-                    text=timer,
-                    callback_data=f"controls status {chat_id}",
-                    style="primary",
-                )
-            ])
+            keyboard.append(
+                [
+                    pbtn(
+                        text=timer,
+                        emoji="TIMER",
+                        style="SUCCESS",
+                        callback_data=f"controls status {chat_id}",
+                    )
+                ]
+            )
 
         if not remove:
-            keyboard.append([
-                self.ikb(
-                    text="▷",
-                    callback_data=f"controls resume {chat_id}",
-                    style="success",
-                ),
-                self.ikb(
-                    text="II",
-                    callback_data=f"controls pause {chat_id}",
-                    style="danger",
-                ),
-                self.ikb(
-                    text="⥁",
-                    callback_data=f"controls replay {chat_id}",
-                    style="primary",
-                ),
-                self.ikb(
-                    text="‣‣I",
-                    callback_data=f"controls skip {chat_id}",
-                    style="primary",
-                ),
-                self.ikb(
-                    text="▢",
-                    callback_data=f"controls stop {chat_id}",
-                    style="danger",
-                ),
-            ])
-
-        keyboard.append([
-            self.ikb(
-                text="✖ Close",
-                callback_data=f"controls close {chat_id}",
-                style="danger",
+            keyboard.append(
+                [
+                    pbtn(
+                        text=BLANK_BTN_TEXT,
+                        emoji="PLAY_CIRCLE",
+                        style="SUCCESS",
+                        callback_data=f"controls resume {chat_id}",
+                    ),
+                    pbtn(
+                        text=BLANK_BTN_TEXT,
+                        emoji="MUSIC_OFF",
+                        style="PRIMARY",
+                        callback_data=f"controls pause {chat_id}",
+                    ),
+                    pbtn(
+                        text=BLANK_BTN_TEXT,
+                        emoji="LOOP",
+                        style="PRIMARY",
+                        callback_data=f"controls replay {chat_id}",
+                    ),
+                    pbtn(
+                        text=BLANK_BTN_TEXT,
+                        emoji="SPEED",
+                        style="PRIMARY",
+                        callback_data=f"controls skip {chat_id}",
+                    ),
+                    pbtn(
+                        text=BLANK_BTN_TEXT,
+                        emoji="STOP_CIRCLE",
+                        style="DANGER",
+                        callback_data=f"controls stop {chat_id}",
+                    ),
+                ]
             )
-        ])
+
+        keyboard.append(
+            [
+                pbtn(
+                    text="Close",
+                    emoji="TRASH",
+                    style="DANGER",
+                    callback_data=f"controls close {chat_id}",
+                )
+            ]
+        )
 
         return self.ikm(keyboard)
 
@@ -88,17 +107,38 @@ class Inline:
         if back:
             rows = [
                 [
-                    self.ikb(text=_lang["back"], callback_data="help back"),
-                    self.ikb(text=_lang["close"], callback_data="help close"),
+                    pbtn(
+                        text=_lang["back"],
+                        emoji="FORWARD",
+                        style="PRIMARY",
+                        callback_data="help back",
+                    ),
+                    pbtn(
+                        text=_lang["close"],
+                        emoji="TRASH",
+                        style="DANGER",
+                        callback_data="help close",
+                    ),
                 ]
             ]
         else:
+            # 3-column grid: keep plain text without icons so labels never clip on mobile
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
             buttons = [
                 self.ikb(text=_lang[f"help_{i}"], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)
             ]
             rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
+            rows.append(
+                [
+                    pbtn(
+                        text=_lang["close"],
+                        emoji="TRASH",
+                        style="DANGER",
+                        callback_data="help close",
+                    )
+                ]
+            )
 
         return self.ikm(rows)
 
@@ -106,8 +146,15 @@ class Inline:
         langs = lang.get_languages()
 
         buttons = [
-            self.ikb(
-                text=f"{name} ({code}) {'✔️' if code == _lang else ''}",
+            pbtn(
+                text=f"{name} ({code})",
+                emoji="VERIFIED",
+                style="SUCCESS",
+                callback_data=f"lang_change {code}",
+            )
+            if code == _lang
+            else self.ikb(
+                text=f"{name} ({code})",
                 callback_data=f"lang_change {code}",
             )
             for code, name in langs.items()
@@ -116,7 +163,9 @@ class Inline:
         return self.ikm(rows)
 
     def ping_markup(self, text: str) -> types.InlineKeyboardMarkup:
-        return self.ikm([[self.ikb(text=text, url=config.SUPPORT_CHAT)]])
+        return self.ikm(
+            [[pbtn(text=text, emoji="CHAT_BUBBLE", style="PRIMARY", url=config.SUPPORT_CHAT)]]
+        )
 
     def play_queued(
         self, chat_id: int, item_id: str, _text: str
@@ -124,8 +173,11 @@ class Inline:
         return self.ikm(
             [
                 [
-                    self.ikb(
-                        text=_text, callback_data=f"controls force {chat_id} {item_id}"
+                    pbtn(
+                        text=_text,
+                        emoji="PLAY_CIRCLE",
+                        style="SUCCESS",
+                        callback_data=f"controls force {chat_id} {item_id}",
                     )
                 ]
             ]
@@ -136,7 +188,16 @@ class Inline:
     ) -> types.InlineKeyboardMarkup:
         _action = "pause" if playing else "resume"
         return self.ikm(
-            [[self.ikb(text=_text, callback_data=f"controls {_action} {chat_id} q")]]
+            [
+                [
+                    pbtn(
+                        text=_text,
+                        emoji="MUSIC_OFF" if playing else "PLAY_CIRCLE",
+                        style="PRIMARY" if playing else "SUCCESS",
+                        callback_data=f"controls {_action} {chat_id} q",
+                    )
+                ]
+            ]
         )
 
     def settings_markup(
@@ -145,25 +206,46 @@ class Inline:
         return self.ikm(
             [
                 [
-                    self.ikb(
-                        text=lang["play_mode"] + " ➜",
+                    pbtn(
+                        text=lang["play_mode"],
+                        emoji="SETTINGS",
+                        style="PRIMARY",
                         callback_data="settings",
                     ),
-                    self.ikb(text=admin_only, callback_data="settings play"),
+                    pbtn(
+                        text="Enabled" if admin_only else "Disabled",
+                        emoji="VERIFIED" if admin_only else "STOP_CIRCLE",
+                        style="SUCCESS" if admin_only else "DANGER",
+                        callback_data="settings play",
+                    ),
                 ],
                 [
-                    self.ikb(
-                        text=lang["cmd_delete"] + " ➜",
+                    pbtn(
+                        text=lang["cmd_delete"],
+                        emoji="TRASH",
+                        style="PRIMARY",
                         callback_data="settings",
                     ),
-                    self.ikb(text=cmd_delete, callback_data="settings delete"),
+                    pbtn(
+                        text="Enabled" if cmd_delete else "Disabled",
+                        emoji="VERIFIED" if cmd_delete else "STOP_CIRCLE",
+                        style="SUCCESS" if cmd_delete else "DANGER",
+                        callback_data="settings delete",
+                    ),
                 ],
                 [
-                    self.ikb(
-                        text=lang["language"] + " ➜",
+                    pbtn(
+                        text=lang["language"],
+                        emoji="SETTINGS",
+                        style="PRIMARY",
                         callback_data="settings",
                     ),
-                    self.ikb(text=lang_codes[language], callback_data="language"),
+                    pbtn(
+                        text=lang_codes[language],
+                        emoji="VERIFIED",
+                        style="PRIMARY",
+                        callback_data="language",
+                    ),
                 ],
             ]
         )
@@ -173,49 +255,63 @@ class Inline:
     ) -> types.InlineKeyboardMarkup:
         rows = [
             [
-                self.ikb(
-                    text="Aᴅᴅ Mᴇ Tᴏ Yᴏᴜʀ Gʀᴏᴜᴘ",
+                pbtn(
+                    text="Add Me To Your Group",
+                    emoji="ROBOT",
+                    style="SUCCESS",
                     url=f"https://t.me/{app.username}?startgroup=true",
-                    style="primary",
                 )
             ],
             [
-                self.ikb(
-                    text="Hᴇʟᴘ",
-                    callback_data="help",
-                    style="success",
-                )
-            ],
-            [
-                self.ikb(
-                    text="Sᴜᴘᴘᴏʀᴛ",
+                pbtn(
+                    text="Support",
+                    emoji="CHAT_BUBBLE",
+                    style="PRIMARY",
                     url="https://t.me/koapsupport",
-                    style="primary",
                 ),
-                self.ikb(
-                    text="Cʜᴀɴɴᴇʟ",
+                pbtn(
+                    text="Channel",
+                    emoji="MEGAPHONE",
+                    style="PRIMARY",
                     url="https://t.me/cutelover666",
-                    style="primary",
                 ),
             ],
         ]
 
         if private:
-            rows.append([
-                self.ikb(
-                    text="Oᴡɴᴇʀ",
-                    url="https://t.me/AP109110",
-                    style="success",
-                )
-            ])
+            rows.append(
+                [
+                    pbtn(
+                        text="Help",
+                        emoji="GRID_MENU",
+                        style="PRIMARY",
+                        callback_data="help",
+                    ),
+                    pbtn(
+                        text="Owner",
+                        emoji="CROWN",
+                        style="DANGER",
+                        url="https://t.me/AP109110",
+                    ),
+                ]
+            )
         else:
-            rows.append([
-                self.ikb(
-                    text="Lᴀɴɢᴜᴀɢᴇ",
-                    callback_data="language",
-                    style="primary",
-                )
-            ])
+            rows.append(
+                [
+                    pbtn(
+                        text="Help",
+                        emoji="GRID_MENU",
+                        style="PRIMARY",
+                        callback_data="help",
+                    ),
+                    pbtn(
+                        text="Language",
+                        emoji="SETTINGS",
+                        style="PRIMARY",
+                        callback_data="language",
+                    ),
+                ]
+            )
 
         return self.ikm(rows)
 
@@ -223,8 +319,8 @@ class Inline:
         return self.ikm(
             [
                 [
-                    self.ikb(text="❐", copy_text=link),
-                    self.ikb(text="Youtube", url=link),
+                    pbtn(text="Copy Link", emoji="LINK", style="PRIMARY", copy_text=link),
+                    pbtn(text="YouTube", emoji="YOUTUBE", style="DANGER", url=link),
                 ],
             ]
         )

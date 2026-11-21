@@ -34,6 +34,9 @@ config.check()
 tasks = []
 boot = time.time()
 
+from anony.helpers._premium_emoji import patch_pyrogram_premium_emoji
+patch_pyrogram_premium_emoji()
+
 from anony.core.bot import Bot
 app = Bot()
 
