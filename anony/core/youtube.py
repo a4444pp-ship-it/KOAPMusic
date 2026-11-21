@@ -62,7 +62,7 @@ class DummyLogger:
 class YouTube:
     def __init__(self):
         self.base = "https://www.youtube.com/watch?v="
-        self.downloads_dir = Path("downloads")
+        self.downloads_dir = Path(__file__).resolve().parents[2] / "downloads"
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
         self.xeno_api_url = _get_xeno_api_url()
         self.api_timeout = int(os.getenv("XENO_API_TIMEOUT", "60"))
