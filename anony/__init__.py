@@ -34,9 +34,6 @@ config.check()
 tasks = []
 boot = time.time()
 
-from anony.helpers._premium_emoji import patch_pyrogram_premium_emoji
-patch_pyrogram_premium_emoji()
-
 from anony.core.bot import Bot
 app = Bot()
 
@@ -56,6 +53,9 @@ from anony.core.telegram import Telegram
 from anony.core.youtube import YouTube
 tg = Telegram()
 yt = YouTube()
+
+from anony.helpers._premium_emoji import patch_pyrogram_premium_emoji
+patch_pyrogram_premium_emoji()
 
 from anony.helpers import Queue, Thumbnail
 queue = Queue()
