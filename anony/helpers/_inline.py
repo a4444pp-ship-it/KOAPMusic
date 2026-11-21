@@ -138,7 +138,9 @@ class Inline:
         rows = [
             [
                 self.ikb(
-                    text="Aᴅᴅ Mᴇ Tᴏ Yᴏᴜʀ Gʀᴏᴜᴘ",
+    text="KOAP TEST BUTTON",
+    url=f"https://t.me/{app.username}?startgroup=true",
+                )
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
             ],
