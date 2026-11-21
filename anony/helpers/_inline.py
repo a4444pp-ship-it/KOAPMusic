@@ -144,16 +144,16 @@ class Inline:
             ],
             [self.ikb(text=lang["help"], callback_data="help")],
             [
-                self.ikb(text=lang["support"], url=config.SUPPORT_CHAT),
-                self.ikb(text=lang["channel"], url=config.SUPPORT_CHANNEL),
+                self.ikb(text=lang["Sᴜᴘᴘᴏʀᴛ"], url=https://t.me/koapsupport),
+                self.ikb(text=lang["Cʜᴀɴɴᴇʟ"], url=https://t.me/cutelover666),
             ],
         ]
         if private:
             rows += [
                 [
                     self.ikb(
-                        text=lang["source"],
-                        url="https://github.com/AnonymousX1025/AnonXMusic",
+                        text=lang["Oᴡɴᴇʀ"],
+                        url="https://t.me/AP109110",
                     )
                 ]
             ]
