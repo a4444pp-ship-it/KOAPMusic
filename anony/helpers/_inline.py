@@ -138,27 +138,47 @@ class Inline:
         rows = [
             [
                 self.ikb(
-                    text=lang["add_me"],
+                    text="Aᴅᴅ Mᴇ Tᴏ Yᴏᴜʀ Gʀᴏᴜᴘ",
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
             ],
-            [self.ikb(text=lang["help"], callback_data="help")],
             [
-                self.ikb(text=lang["Sᴜᴘᴘᴏʀᴛ"], url=https://t.me/koapsupport),
-                self.ikb(text=lang["Cʜᴀɴɴᴇʟ"], url=https://t.me/cutelover666),
+                self.ikb(
+                    text="Hᴇʟᴘ",
+                    callback_data="help",
+                )
+            ],
+            [
+                self.ikb(
+                    text="Sᴜᴘᴘᴏʀᴛ",
+                    url="https://t.me/koapsupport",
+                ),
+                self.ikb(
+                    text="Cʜᴀɴɴᴇʟ",
+                    url="https://t.me/cutelover666",
+                ),
             ],
         ]
+
         if private:
-            rows += [
+            rows.append(
                 [
                     self.ikb(
-                        text=lang["Oᴡɴᴇʀ"],
+                        text="Oᴡɴᴇʀ",
                         url="https://t.me/AP109110",
                     )
                 ]
-            ]
+            )
         else:
-            rows += [[self.ikb(text=lang["language"], callback_data="language")]]
+            rows.append(
+                [
+                    self.ikb(
+                        text="Lᴀɴɢᴜᴀɢᴇ",
+                        callback_data="language",
+                    )
+                ]
+            )
+
         return self.ikm(rows)
 
     def yt_key(self, link: str) -> types.InlineKeyboardMarkup:
