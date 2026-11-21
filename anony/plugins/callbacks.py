@@ -25,7 +25,7 @@ async def _controls(_, query: types.CallbackQuery):
     args = query.data.split()
     action, chat_id = args[1], int(args[2])
     
-if action == "close":
+    if action == "close":
         try:
             await query.answer()
         except Exception:
