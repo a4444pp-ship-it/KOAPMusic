@@ -25,33 +25,60 @@ class Inline:
         remove: bool = False,
     ) -> types.InlineKeyboardMarkup:
         keyboard = []
+
         if status:
-            keyboard.append(
-                [self.ikb(text=status, callback_data=f"controls status {chat_id}")]
-            )
+            keyboard.append([
+                self.ikb(
+                    text=status,
+                    callback_data=f"controls status {chat_id}",
+                    style="primary",
+                )
+            ])
         elif timer:
-            keyboard.append(
-                [self.ikb(text=timer, callback_data=f"controls status {chat_id}")]
-            )
+            keyboard.append([
+                self.ikb(
+                    text=timer,
+                    callback_data=f"controls status {chat_id}",
+                    style="primary",
+                )
+            ])
 
         if not remove:
-            keyboard.append(
-                [
-                    self.ikb(text="▷", callback_data=f"controls resume {chat_id}"),
-                    self.ikb(text="II", callback_data=f"controls pause {chat_id}"),
-                    self.ikb(text="⥁", callback_data=f"controls replay {chat_id}"),
-                    self.ikb(text="‣‣I", callback_data=f"controls skip {chat_id}"),
-                    self.ikb(text="▢", callback_data=f"controls stop {chat_id}"),
-                ]
+            keyboard.append([
+                self.ikb(
+                    text="▷",
+                    callback_data=f"controls resume {chat_id}",
+                    style="success",
+                ),
+                self.ikb(
+                    text="II",
+                    callback_data=f"controls pause {chat_id}",
+                    style="danger",
+                ),
+                self.ikb(
+                    text="⥁",
+                    callback_data=f"controls replay {chat_id}",
+                    style="primary",
+                ),
+                self.ikb(
+                    text="‣‣I",
+                    callback_data=f"controls skip {chat_id}",
+                    style="primary",
+                ),
+                self.ikb(
+                    text="▢",
+                    callback_data=f"controls stop {chat_id}",
+                    style="danger",
+                ),
+            ])
+
+        keyboard.append([
+            self.ikb(
+                text="✖ Close",
+                callback_data=f"controls close {chat_id}",
+                style="danger",
             )
-        keyboard.append(
-                [
-                    self.ikb(
-                        text="✖ Close",
-                        callback_data=f"controls close {chat_id}",
-                    )
-                ]
-            )
+        ])
 
         return self.ikm(keyboard)
 
