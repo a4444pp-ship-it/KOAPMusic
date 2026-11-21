@@ -23,23 +23,43 @@ class Thumbnail:
         self.size = (1280, 720)
         self.session = None
 
-        self.blue = (0, 170, 255)
+        # Dark blue & cyan glassmorphism palette
+        self.blue = (0, 150, 255)
         self.cyan = (0, 225, 255)
-        self.white = (245, 250, 255)
-        self.muted = (155, 190, 225)
+        self.bright_cyan = (110, 240, 255)
+        self.white = (248, 252, 255)
+        self.soft_white = (225, 238, 248)
+        self.muted = (165, 198, 225)
+
+        self.glass_fill = (8, 28, 66, 158)
+        self.glass_border = (120, 225, 255, 175)
+        self.badge_fill = (20, 58, 105, 170)
+        self.footer_fill = (6, 22, 54, 175)
 
         try:
-            self.font_bold = ImageFont.truetype(
-                "anony/helpers/Raleway-Bold.ttf", 38
+            self.font_logo = ImageFont.truetype(
+                "anony/helpers/Raleway-Bold.ttf", 56
+            )
+            self.font_title = ImageFont.truetype(
+                "anony/helpers/Raleway-Bold.ttf", 40
+            )
+            self.font_subtitle = ImageFont.truetype(
+                "anony/helpers/Inter-Light.ttf", 27
+            )
+            self.font_badge = ImageFont.truetype(
+                "anony/helpers/Raleway-Bold.ttf", 20
             )
             self.font_regular = ImageFont.truetype(
-                "anony/helpers/Inter-Light.ttf", 25
+                "anony/helpers/Inter-Light.ttf", 24
             )
             self.font_small = ImageFont.truetype(
                 "anony/helpers/Inter-Light.ttf", 19
             )
         except Exception:
-            self.font_bold = ImageFont.load_default()
+            self.font_logo = ImageFont.load_default()
+            self.font_title = ImageFont.load_default()
+            self.font_subtitle = ImageFont.load_default()
+            self.font_badge = ImageFont.load_default()
             self.font_regular = ImageFont.load_default()
             self.font_small = ImageFont.load_default()
 
@@ -63,7 +83,7 @@ class Thumbnail:
 
         return output_path
 
-    def rounded_cover(self, image, radius=25):
+    def rounded_cover(self, image: Image.Image, radius: int = 28) -> Image.Image:
         image = image.convert("RGBA")
         mask = Image.new("L", image.size, 0)
         draw = ImageDraw.Draw(mask)
@@ -75,25 +95,220 @@ class Thumbnail:
         image.putalpha(mask)
         return image
 
-    def fit_text(self, draw, text, font, max_width):
-        text = str(text or "Unknown")
-        while text and draw.textbbox((0, 0), text, font=font)[2] > max_width:
-            text = text[:-2]
-        if text != str(text or ""):
-            text += "..."
-        return text
+    def fit_text(
+        self, draw: ImageDraw.ImageDraw, text: str, font, max_width: int
+    ) -> str:
+        clean = " ".join(str(text or "Unknown").split())
+        if draw.textbbox((0, 0), clean, font=font)[2] <= max_width:
+            return clean
 
-    def draw_glow(self, image, box, radius=30):
+        ellipsis = "..."
+        trimmed = clean
+        while trimmed:
+            trimmed = trimmed[:-1].rstrip()
+            candidate = trimmed + ellipsis
+            if draw.textbbox((0, 0), candidate, font=font)[2] <= max_width:
+                return candidate
+
+        return ellipsis
+
+    def draw_glow_box(
+        self,
+        image: Image.Image,
+        box: tuple[int, int, int, int],
+        radius: int = 36,
+        glow_color: tuple[int, int, int, int] = (0, 210, 255, 115),
+        blur_radius: int = 18,
+    ) -> None:
         glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
         gd = ImageDraw.Draw(glow)
         gd.rounded_rectangle(
             box,
             radius=radius,
-            outline=(0, 150, 255, 210),
-            width=5,
+            outline=glow_color,
+            width=7,
         )
-        glow = glow.filter(ImageFilter.GaussianBlur(12))
+        glow = glow.filter(ImageFilter.GaussianBlur(blur_radius))
         image.alpha_composite(glow)
+
+    def draw_ambient_rays(self, image: Image.Image) -> None:
+        rays = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        rd = ImageDraw.Draw(rays)
+
+        # Top cyan accent glow and horizontal light streaks
+        rd.ellipse((140, 80, 1140, 210), fill=(0, 210, 255, 38))
+        rd.ellipse((180, 545, 1100, 645), fill=(0, 180, 255, 34))
+        rd.rounded_rectangle((220, 126, 1060, 132), radius=3, fill=(120, 235, 255, 85))
+        rd.rounded_rectangle((260, 588, 1020, 593), radius=3, fill=(120, 235, 255, 75))
+
+        rays = rays.filter(ImageFilter.GaussianBlur(14))
+        image.alpha_composite(rays)
+
+    def draw_header_and_eq(self, image: Image.Image) -> None:
+        layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+
+        # Top-left KOAPMUSIC logo & subtitle
+        draw.text(
+            (55, 22),
+            "KOAPMUSIC",
+            font=self.font_logo,
+            fill=self.white,
+            stroke_width=2,
+            stroke_fill=(0, 95, 210),
+        )
+        draw.text(
+            (58, 86),
+            "TELEGRAM MUSIC BOT",
+            font=self.font_small,
+            fill=self.cyan,
+        )
+
+        # Top-right cyan equalizer bars
+        heights = [
+            28, 44, 62, 38, 78, 52, 92, 46, 70, 34, 86, 56,
+            40, 76, 48, 88, 60, 36, 68, 44, 54, 30, 42, 22,
+        ]
+        start_x = 875
+        base_y = 104
+        for idx, h in enumerate(heights):
+            x = start_x + idx * 14
+            bar_color = self.bright_cyan if h >= 70 else self.cyan
+            draw.rounded_rectangle(
+                (x, base_y - h, x + 7, base_y),
+                radius=3,
+                fill=(bar_color[0], bar_color[1], bar_color[2], 225),
+            )
+
+        image.alpha_composite(layer)
+
+    def draw_transport_controls(
+        self, draw: ImageDraw.ImageDraw, center_x: int, center_y: int
+    ) -> None:
+        # Center glass Play/Pause button
+        r = 48
+        draw.ellipse(
+            (center_x - r, center_y - r, center_x + r, center_y + r),
+            fill=(30, 85, 145, 155),
+            outline=(140, 235, 255, 185),
+            width=3,
+        )
+
+        # Pause bars
+        bar_w = 9
+        bar_h = 30
+        gap = 8
+        left_x = center_x - gap - bar_w
+        right_x = center_x + gap
+        top_y = center_y - bar_h // 2
+
+        draw.rounded_rectangle(
+            (left_x, top_y, left_x + bar_w, top_y + bar_h),
+            radius=4,
+            fill=self.white,
+        )
+        draw.rounded_rectangle(
+            (right_x, top_y, right_x + bar_w, top_y + bar_h),
+            radius=4,
+            fill=self.white,
+        )
+
+        # Previous (<<)
+        prev_x = center_x - 132
+        draw.polygon(
+            [
+                (prev_x, center_y - 16),
+                (prev_x, center_y + 16),
+                (prev_x - 21, center_y),
+            ],
+            fill=self.soft_white,
+        )
+        draw.polygon(
+            [
+                (prev_x + 19, center_y - 16),
+                (prev_x + 19, center_y + 16),
+                (prev_x - 2, center_y),
+            ],
+            fill=self.soft_white,
+        )
+
+        # Next (>>)
+        next_x = center_x + 132
+        draw.polygon(
+            [
+                (next_x, center_y - 16),
+                (next_x, center_y + 16),
+                (next_x + 21, center_y),
+            ],
+            fill=self.soft_white,
+        )
+        draw.polygon(
+            [
+                (next_x - 19, center_y - 16),
+                (next_x - 19, center_y + 16),
+                (next_x + 2, center_y),
+            ],
+            fill=self.soft_white,
+        )
+
+    def draw_volume_bar(
+        self, draw: ImageDraw.ImageDraw, center_x: int, y: int
+    ) -> None:
+        # Speaker icon
+        spk_x = center_x - 148
+        draw.polygon(
+            [
+                (spk_x - 9, y - 5),
+                (spk_x - 2, y - 5),
+                (spk_x + 7, y - 13),
+                (spk_x + 7, y + 13),
+                (spk_x - 2, y + 5),
+                (spk_x - 9, y + 5),
+            ],
+            fill=self.soft_white,
+        )
+
+        # Volume slider track
+        bar_left = center_x - 122
+        bar_right = center_x + 122
+        bar_h = 7
+        draw.rounded_rectangle(
+            (bar_left, y - bar_h // 2, bar_right, y + bar_h // 2),
+            radius=4,
+            fill=(160, 200, 235, 105),
+        )
+
+        fill_x = bar_left + int((bar_right - bar_left) * 0.62)
+        draw.rounded_rectangle(
+            (bar_left, y - bar_h // 2, fill_x, y + bar_h // 2),
+            radius=4,
+            fill=self.cyan,
+        )
+
+        knob_r = 9
+        draw.ellipse(
+            (fill_x - knob_r, y - knob_r, fill_x + knob_r, y + knob_r),
+            fill=self.white,
+            outline=self.cyan,
+            width=2,
+        )
+
+        # Sound wave arcs
+        wave_x = center_x + 142
+        draw.arc(
+            (wave_x - 7, y - 7, wave_x + 5, y + 7),
+            start=-55,
+            end=55,
+            fill=self.bright_cyan,
+            width=2,
+        )
+        draw.arc(
+            (wave_x - 11, y - 12, wave_x + 11, y + 12),
+            start=-55,
+            end=55,
+            fill=self.bright_cyan,
+            width=2,
+        )
 
     async def generate(self, song: Track, size=(1280, 720)) -> str:
         try:
@@ -107,199 +322,206 @@ class Thumbnail:
 
             await self.save_thumb(temp, song.thumbnail)
 
-            cover = Image.open(temp).convert("RGB")
+            raw_cover = Image.open(temp).convert("RGB")
 
-            # Background
+            # 1. Deep dark-blue blurred background
             bg = ImageOps.fit(
-                cover,
+                raw_cover,
                 self.size,
                 method=Image.Resampling.LANCZOS,
-            ).filter(ImageFilter.GaussianBlur(35))
-
-            bg = ImageEnhance.Brightness(bg).enhance(0.30)
+            ).filter(ImageFilter.GaussianBlur(48))
+            bg = ImageEnhance.Brightness(bg).enhance(0.32)
+            bg = ImageEnhance.Color(bg).enhance(1.25)
             image = bg.convert("RGBA")
 
-            # Dark blue overlay
-            overlay = Image.new("RGBA", self.size, (2, 10, 35, 155))
-            image.alpha_composite(overlay)
+            dark_overlay = Image.new("RGBA", self.size, (3, 14, 38, 165))
+            image.alpha_composite(dark_overlay)
 
-            draw = ImageDraw.Draw(image)
+            # 2. Header & equalizer
+            self.draw_header_and_eq(image)
 
-            # Header
-            draw.text(
-                (55, 25),
-                "KOAPMUSIC",
-                font=ImageFont.truetype(
-                    "anony/helpers/Raleway-Bold.ttf", 58
-                ),
-                fill=self.white,
-                stroke_width=2,
-                stroke_fill=(0, 90, 220),
+            # 3. Ambient cyan glow & floating glass card
+            self.draw_ambient_rays(image)
+
+            card_box = (42, 132, 1238, 592)
+            self.draw_glow_box(
+                image,
+                card_box,
+                radius=38,
+                glow_color=(0, 210, 255, 110),
+                blur_radius=16,
             )
 
-            draw.text(
-                (60, 92),
-                "TELEGRAM MUSIC BOT",
-                font=self.font_small,
-                fill=self.cyan,
-            )
-
-            # Header equalizer
-            for i in range(24):
-                x = 850 + i * 14
-                h = 20 + ((i * 17) % 65)
-                draw.rounded_rectangle(
-                    (x, 105 - h, x + 7, 105),
-                    radius=3,
-                    fill=(0, 170, 255, 210),
-                )
-
-            # Main panel
-            draw.rounded_rectangle(
-                (35, 145, 1245, 620),
-                radius=35,
-                fill=(2, 12, 40, 220),
-                outline=(0, 135, 255, 255),
+            card_layer = Image.new("RGBA", self.size, (0, 0, 0, 0))
+            cd = ImageDraw.Draw(card_layer)
+            cd.rounded_rectangle(
+                card_box,
+                radius=38,
+                fill=self.glass_fill,
+                outline=self.glass_border,
                 width=3,
             )
+            image.alpha_composite(card_layer)
 
-            self.draw_glow(image, (35, 145, 1245, 620))
-            draw = ImageDraw.Draw(image)
+            # 4. Larger glowing cover on the left
+            cover_size = (412, 412)
+            cover_x, cover_y = 74, 156
+            cover_box = (cover_x, cover_y, cover_x + cover_size[0], cover_y + cover_size[1])
 
-            # Album cover
-            cover_size = (410, 410)
+            self.draw_glow_box(
+                image,
+                cover_box,
+                radius=30,
+                glow_color=(0, 225, 255, 155),
+                blur_radius=15,
+            )
+
             cover = ImageOps.fit(
-                cover,
+                raw_cover,
                 cover_size,
                 method=Image.Resampling.LANCZOS,
             )
-            cover = self.rounded_cover(cover, 25)
+            cover = self.rounded_cover(cover, radius=28)
+            image.alpha_composite(cover, (cover_x, cover_y))
 
-            image.alpha_composite(cover, (75, 180))
-
-            draw = ImageDraw.Draw(image)
-            draw.rounded_rectangle(
-                (75, 180, 485, 590),
-                radius=25,
-                outline=self.blue,
-                width=4,
+            cover_border = Image.new("RGBA", self.size, (0, 0, 0, 0))
+            cbd = ImageDraw.Draw(cover_border)
+            cbd.rounded_rectangle(
+                cover_box,
+                radius=28,
+                outline=(120, 235, 255, 210),
+                width=3,
             )
+            image.alpha_composite(cover_border)
 
-            # Now Playing label
+            # 5. Right panel: LIVE VC badge, title, artist, timeline, controls
+            ui_layer = Image.new("RGBA", self.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(ui_layer)
+
+            # Top-right LIVE VC pill badge
+            badge_box = (1006, 166, 1196, 216)
             draw.rounded_rectangle(
-                (545, 185, 845, 245),
-                radius=30,
-                fill=(0, 35, 90, 230),
-                outline=self.blue,
+                badge_box,
+                radius=25,
+                fill=self.badge_fill,
+                outline=(120, 230, 255, 165),
                 width=2,
             )
-
             draw.text(
-                (575, 198),
-                "▮▮  NOW PLAYING",
-                font=self.font_regular,
+                (1030, 179),
+                "LIVE VC",
+                font=self.font_badge,
                 fill=self.white,
             )
-
-            # Song title
-            title = str(song.title or "Unknown Song")
-            title_font = ImageFont.truetype(
-                "anony/helpers/Raleway-Bold.ttf", 43
+            draw.ellipse(
+                (1156, 184, 1172, 200),
+                fill=self.bright_cyan,
             )
 
-            while (
-                title
-                and draw.textbbox((0, 0), title, font=title_font)[2] > 660
-            ):
-                title = title[:-2]
+            # Song title & artist
+            text_left = 526
+            text_max_w = 665
 
-            if title != str(song.title or "Unknown Song"):
-                title += "..."
-
+            title = self.fit_text(
+                draw,
+                song.title or "Unknown Song",
+                self.font_title,
+                text_max_w,
+            )
             draw.text(
-                (545, 275),
+                (text_left, 238),
                 title,
-                font=title_font,
+                font=self.font_title,
                 fill=self.white,
             )
 
-            # Artist / channel
-            artist = str(song.channel_name or "KOAPMUSIC")
-
-            while (
-                artist
-                and draw.textbbox((0, 0), artist, font=self.font_regular)[2]
-                > 600
-            ):
-                artist = artist[:-2]
-
-            if artist != str(song.channel_name or "KOAPMUSIC"):
-                artist += "..."
-
+            channel = str(song.channel_name or "KOAPMUSIC").strip()
+            subtitle = self.fit_text(
+                draw,
+                f"♪  {channel}",
+                self.font_subtitle,
+                text_max_w,
+            )
             draw.text(
-                (550, 345),
-                "♪  " + artist,
-                font=self.font_regular,
+                (text_left, 296),
+                subtitle,
+                font=self.font_subtitle,
                 fill=self.muted,
             )
 
-            # Progress line
+            # Progress bar
+            prog_left = 526
+            prog_right = 1192
+            prog_y = 368
+            prog_h = 8
+
             draw.rounded_rectangle(
-                (550, 420, 1190, 428),
-                radius=5,
-                fill=(45, 75, 125, 255),
+                (prog_left, prog_y - prog_h // 2, prog_right, prog_y + prog_h // 2),
+                radius=4,
+                fill=(130, 175, 215, 95),
             )
+
+            knob_x = prog_left + int((prog_right - prog_left) * 0.42)
             draw.rounded_rectangle(
-                (550, 420, 730, 428),
-                radius=5,
+                (prog_left, prog_y - prog_h // 2, knob_x, prog_y + prog_h // 2),
+                radius=4,
                 fill=self.cyan,
             )
-
             draw.ellipse(
-                (718, 410, 742, 434),
+                (knob_x - 10, prog_y - 10, knob_x + 10, prog_y + 10),
                 fill=self.white,
-                outline=self.blue,
+                outline=self.cyan,
                 width=2,
             )
 
+            # Left label & right duration
             draw.text(
-                (550, 440),
+                (prog_left, 386),
                 "KOAPMUSIC",
                 font=self.font_small,
-                fill=self.white,
+                fill=self.soft_white,
             )
 
-            duration = str(song.duration or "00:00")
+            duration_str = str(song.duration or "00:00")
+            dur_w = draw.textbbox((0, 0), duration_str, font=self.font_small)[2]
             draw.text(
-                (1090, 440),
-                duration,
+                (prog_right - dur_w, 386),
+                duration_str,
                 font=self.font_small,
-                fill=self.white,
-            )  
+                fill=self.soft_white,
+            )
 
-            # Footer
+            # Transport controls & volume slider
+            center_x = (prog_left + prog_right) // 2
+            self.draw_transport_controls(draw, center_x, 466)
+            self.draw_volume_bar(draw, center_x, 542)
+
+            # 6. Bottom glass footer bar
+            footer_box = (42, 616, 1238, 688)
             draw.rounded_rectangle(
-                (40, 635, 1240, 700),
-                radius=25,
-                fill=(1, 12, 38, 245),
-                outline=(0, 120, 255, 255),
+                footer_box,
+                radius=26,
+                fill=self.footer_fill,
+                outline=(110, 220, 255, 155),
                 width=2,
             )
-
             draw.text(
-                (90, 650),
+                (76, 636),
                 "Powered by KOAPMUSIC",
                 font=self.font_regular,
                 fill=self.white,
             )
 
+            handle_text = "@KoAPmusic_bot"
+            handle_w = draw.textbbox((0, 0), handle_text, font=self.font_regular)[2]
             draw.text(
-                (770, 650),
-                "@KoAPmusic_bot",
+                (1204 - handle_w, 636),
+                handle_text,
                 font=self.font_regular,
                 fill=self.cyan,
             )
 
+            image.alpha_composite(ui_layer)
             image.convert("RGB").save(output, quality=95)
 
             try:
