@@ -38,8 +38,8 @@ class Config:
             if url and "batbin.me" in url
         ]
         self.DEFAULT_THUMB = getenv("DEFAULT_THUMB", "https://files.catbox.moe/gue5ke.png")
-self.PING_IMG = getenv("PING_IMG", "https://files.catbox.moe/94pwyx.png")
-self.START_IMG = getenv("START_IMG", "https://files.catbox.moe/6mix1u.png")
+        self.PING_IMG = getenv("PING_IMG", "https://files.catbox.moe/94pwyx.png")
+        self.START_IMG = getenv("START_IMG", "https://files.catbox.moe/6mix1u.png")
     def check(self):
         missing = [
             var
