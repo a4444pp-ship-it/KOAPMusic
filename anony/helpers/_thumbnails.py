@@ -275,47 +275,7 @@ class Thumbnail:
                 duration,
                 font=self.font_small,
                 fill=self.white,
-            )
-
-            # Music controls
-            controls = [
-                (225, "⇄", self.cyan),
-                (430, "◀", self.white),
-                (640, "Ⅱ", self.white),
-                (850, "▶", self.white),
-                (1055, "↻", self.cyan),
-            ]
-
-            for x, symbol, color in controls:
-                radius = 49 if x != 640 else 65
-
-                draw.ellipse(
-                    (
-                        x - radius,
-                        535 - radius,
-                        x + radius,
-                        535 + radius,
-                    ),
-                    fill=(3, 20, 65, 255),
-                    outline=self.blue,
-                    width=3,
-                )
-
-                font = ImageFont.truetype(
-                    "anony/helpers/Raleway-Bold.ttf",
-                    55 if x != 640 else 70,
-                )
-
-                bbox = draw.textbbox((0, 0), symbol, font=font)
-                tw = bbox[2] - bbox[0]
-                th = bbox[3] - bbox[1]
-
-                draw.text(
-                    (x - tw / 2, 535 - th / 2 - bbox[1]),
-                    symbol,
-                    font=font,
-                    fill=color,
-                )
+            )  
 
             # Footer
             draw.rounded_rectangle(
