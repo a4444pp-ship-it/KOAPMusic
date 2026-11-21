@@ -24,6 +24,18 @@ async def cancel_dl(_, query: types.CallbackQuery):
 async def _controls(_, query: types.CallbackQuery):
     args = query.data.split()
     action, chat_id = args[1], int(args[2])
+    
+if action == "close":
+        try:
+            await query.answer()
+        except Exception:
+            pass
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        return
+    
     qaction = len(args) == 4
     user = query.from_user.mention
 
