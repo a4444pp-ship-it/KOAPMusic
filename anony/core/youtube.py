@@ -160,7 +160,7 @@ class YouTube:
                     ydl.download([url])
                 except Exception as ex:
     logger.error(f"YouTube Download Error: {type(ex).__name__}: {ex}")
-    return Non
+    return None
                 except Exception as ex:
                     logger.warning("Download failed: %s", ex)
                     return None
