@@ -155,15 +155,14 @@ class YouTube:
             }
 
         def _download():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                try:
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([url])
-                except Exception as ex:
-    logger.error(f"YouTube Download Error: {type(ex).__name__}: {ex}")
-    return None
-                except Exception as ex:
-                    logger.warning("Download failed: %s", ex)
-                    return None
-            return filename
+                return filename
+            except Exception as ex:
+                logger.error(
+                    f"YouTube Download Error: {type(ex).__name__}: {ex}"
+                )
+                return None
 
         return await asyncio.to_thread(_download)
