@@ -176,44 +176,46 @@ class Inline:
                 self.ikb(
                     text="Aᴅᴅ Mᴇ Tᴏ Yᴏᴜʀ Gʀᴏᴜᴘ",
                     url=f"https://t.me/{app.username}?startgroup=true",
+                    style="primary",
                 )
             ],
             [
                 self.ikb(
                     text="Hᴇʟᴘ",
                     callback_data="help",
+                    style="success",
                 )
             ],
             [
                 self.ikb(
                     text="Sᴜᴘᴘᴏʀᴛ",
                     url="https://t.me/koapsupport",
+                    style="primary",
                 ),
                 self.ikb(
                     text="Cʜᴀɴɴᴇʟ",
                     url="https://t.me/cutelover666",
+                    style="primary",
                 ),
             ],
         ]
 
         if private:
-            rows.append(
-                [
-                    self.ikb(
-                        text="Oᴡɴᴇʀ",
-                        url="https://t.me/AP109110",
-                    )
-                ]
-            )
+            rows.append([
+                self.ikb(
+                    text="Oᴡɴᴇʀ",
+                    url="https://t.me/AP109110",
+                    style="success",
+                )
+            ])
         else:
-            rows.append(
-                [
-                    self.ikb(
-                        text="Lᴀɴɢᴜᴀɢᴇ",
-                        callback_data="language",
-                    )
-                ]
-            )
+            rows.append([
+                self.ikb(
+                    text="Lᴀɴɢᴜᴀɢᴇ",
+                    callback_data="language",
+                    style="primary",
+                )
+            ])
 
         return self.ikm(rows)
 
