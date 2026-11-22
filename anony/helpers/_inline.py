@@ -76,7 +76,7 @@ class Inline:
 
         keyboard.append([
             self.ikb(
-                text="✖ Close",
+                text="Close",
                 callback_data=f"controls close {chat_id}",
                 style="danger",
                 icon_custom_emoji_id="6269316311172518259",
