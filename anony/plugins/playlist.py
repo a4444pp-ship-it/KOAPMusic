@@ -9,7 +9,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from youtube_search import YoutubeSearch
 
 from anony import app, config
-from anony.core.mongo import mongodb
+from anony.core import mongo as _mongo_mod
 from anony.utils.decorators.language import language, languageCB
 from anony.utils.inline.playlist import (
     botplaylist_markup,
@@ -26,7 +26,12 @@ user_command_count = {}
 SPAM_THRESHOLD = 2
 SPAM_WINDOW_SECONDS = 5
 
-playlistdb = mongodb.playlist
+_db = (
+    getattr(_mongo_mod, "mongodb", None)
+    or getattr(_mongo_mod, "db", None)
+    or getattr(_mongo_mod, "database", None)
+)
+playlistdb = _db.playlist
 playlist = []
 # Playlist Databse
 
@@ -744,4 +749,4 @@ async def del_back_playlist(client, CallbackQuery, _):
     keyboard, count = await get_keyboard(_, user_id)
     return await CallbackQuery.edit_message_text(
         _["playlist_7"].format(count), reply_markup=keyboard
-    )
+            )
