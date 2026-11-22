@@ -79,6 +79,7 @@ class Inline:
                 text="✖ Close",
                 callback_data=f"controls close {chat_id}",
                 style="danger",
+                icon_custom_emoji_id="6269316311172518259",
             )
         ])
 
@@ -94,22 +95,36 @@ class Inline:
                         text=_lang["back"],
                         callback_data="help back",
                         style="primary",
+                        icon_custom_emoji_id="5258236805890710909",
                     ),
                     self.ikb(
                         text=_lang["close"],
                         callback_data="help close",
                         style="danger",
+                        icon_custom_emoji_id="6269316311172518259",
                     ),
                 ]
             ]
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
             styles = ["primary", "primary", "danger", "success", "primary", "success", "primary", "primary", "danger"]
+            emojis = [
+                "5258513401784573443",  # Admin
+                "5316727448644103237",  # Auth
+                "6044307467070869456",  # Blacklist
+                "6285266011528636295",  # Language
+                "6046644354481655825",  # Ping
+                "5258334469152054985",  # Play
+                "6044271071518003692",  # Queue
+                "5974235702701853774",  # Starts (Stats)
+                "5258334872878980409",  # Sudoers
+            ]
             buttons = [
                 self.ikb(
                     text=_lang[f"help_{i}"],
                     callback_data=f"help {cb}",
                     style=styles[i % len(styles)],
+                    icon_custom_emoji_id=emojis[i],
                 )
                 for i, cb in enumerate(cbs)
             ]
@@ -145,6 +160,7 @@ class Inline:
                     text=_text,
                     callback_data=f"controls force {chat_id} {item_id}",
                     style="success",
+                    icon_custom_emoji_id="6213026882108002337",
                 )
             ]
         ])
@@ -214,6 +230,7 @@ class Inline:
                     text="Aᴅᴅ Mᴇ Tᴏ Yᴏᴜʀ Gʀᴏᴜᴘ",
                     url=f"https://t.me/{app.username}?startgroup=true",
                     style="primary",
+                    icon_custom_emoji_id="5258362837411045098",
                 )
             ],
             [
@@ -221,6 +238,7 @@ class Inline:
                     text="Hᴇʟᴘ",
                     callback_data="help",
                     style="success",
+                    icon_custom_emoji_id="6008258140108231117",
                 )
             ],
             [
@@ -228,11 +246,13 @@ class Inline:
                     text="Sᴜᴘᴘᴏʀᴛ",
                     url="https://t.me/koapsupport",
                     style="primary",
+                    icon_custom_emoji_id="5260535596941582167",
                 ),
                 self.ikb(
                     text="Cʜᴀɴɴᴇʟ",
                     url="https://t.me/cutelover666",
                     style="primary",
+                    icon_custom_emoji_id="5260268501515377807",
                 ),
             ],
         ]
@@ -243,6 +263,7 @@ class Inline:
                     text="Oᴡɴᴇʀ",
                     url="https://t.me/AP109110",
                     style="success",
+                    icon_custom_emoji_id="5971831809506282660",
                 )
             ])
         else:
@@ -251,6 +272,7 @@ class Inline:
                     text="Lᴀɴɢᴜᴀɢᴇ",
                     callback_data="language",
                     style="primary",
+                    icon_custom_emoji_id="6285266011528636295",
                 )
             ])
 
