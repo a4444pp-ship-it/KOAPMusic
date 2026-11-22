@@ -14,7 +14,7 @@ class Config:
         self.LOGGER_ID = int(getenv("LOGGER_ID", 0))
         self.OWNER_ID = int(getenv("OWNER_ID", 5538352894))
 
-        self.DURATION_LIMIT = int(getenv("DURATION_LIMIT", 240)) * 240
+        self.DURATION_LIMIT = int(getenv("DURATION_LIMIT", 240)) * 60
         self.QUEUE_LIMIT = int(getenv("QUEUE_LIMIT", 150))
         self.PLAYLIST_LIMIT = int(getenv("PLAYLIST_LIMIT", 150))
 
