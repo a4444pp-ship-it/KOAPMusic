@@ -1,6 +1,4 @@
 import asyncio
-import os
-from random import randint
 from time import time
 from typing import Dict, List, Union
 
@@ -10,7 +8,7 @@ from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from youtube_search import YoutubeSearch
 
-from anony import Carbon, app, config
+from anony import app, config
 from anony.core.mongo import mongodb
 from anony.utils.decorators.language import language, languageCB
 from anony.utils.inline.playlist import (
@@ -120,11 +118,8 @@ async def check_playlist(client, message: Message, _):
         msg += f"\n\n{count}- {title[:70]}\n"
         msg += _["playlist_5"].format(duration)
     link = await HottyBin(msg)
-    lines = msg.count("\n")
-    car = os.linesep.join(msg.split(os.linesep)[:17]) if lines >= 17 else msg
-    carbon = await Carbon.generate(car, randint(100, 10000000000))
     await get.delete()
-    await message.reply_photo(carbon, caption=_["playlist_15"].format(link))
+    await message.reply_text(_["playlist_15"].format(link))
 
 
 async def get_keyboard(_, user_id):
@@ -749,4 +744,4 @@ async def del_back_playlist(client, CallbackQuery, _):
     keyboard, count = await get_keyboard(_, user_id)
     return await CallbackQuery.edit_message_text(
         _["playlist_7"].format(count), reply_markup=keyboard
-                )
+    )
