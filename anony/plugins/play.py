@@ -3,6 +3,7 @@
 # This file is part of AnonXMusic
 
 
+from html import escape
 from pathlib import Path
 
 from pyrogram import filters, types
@@ -13,12 +14,25 @@ from anony.helpers._play import checkUB
 
 
 def playlist_to_queue(chat_id: int, tracks: list) -> str:
-    text = "<blockquote expandable>"
+    lines = []
+    char_count = 0
+    hidden = 0
+
     for track in tracks:
         pos = queue.add(chat_id, track)
-        text += f"<b>{pos}.</b> {track.title}\n"
-    text = text[:1948] + "</blockquote>"
-    return text
+        safe_title = escape(str(track.title or "Unknown Title"))
+        line = f"<b>{pos}.</b> {safe_title}\n"
+        if hidden == 0 and char_count + len(line) <= 1850:
+            lines.append(line)
+            char_count += len(line)
+        else:
+            hidden += 1
+
+    if hidden:
+        lines.append(f"<i>... and {hidden} more tracks</i>\n")
+
+    return "<blockquote expandable>" + "".join(lines) + "</blockquote>"
+
 
 @app.on_message(
     filters.command(["play", "playforce", "vplay", "vplayforce"])
@@ -49,7 +63,7 @@ async def play_hndlr(
         file = await tg.process_m3u8(url, sent.id, video)
 
     elif url:
-        if "playlist" in url:
+        if yt.is_playlist(url):
             await sent.edit_text(m.lang["playlist_fetch"])
             tracks = await yt.playlist(
                 config.PLAYLIST_LIMIT, mention, url, video
@@ -58,8 +72,17 @@ async def play_hndlr(
             if not tracks:
                 return await sent.edit_text(m.lang["playlist_error"])
 
-            file = tracks[0]
-            tracks.remove(file)
+            valid_tracks = [
+                t for t in tracks
+                if not t.duration_sec or t.duration_sec <= config.DURATION_LIMIT
+            ]
+            if not valid_tracks:
+                return await sent.edit_text(
+                    m.lang["play_duration_limit"].format(config.DURATION_LIMIT // 60)
+                )
+
+            tracks = valid_tracks
+            file = tracks.pop(0)
             file.message_id = sent.id
         else:
             file = await yt.search(url, sent.id, video=video)
@@ -99,7 +122,7 @@ async def play_hndlr(
                 m.lang["play_queued"].format(
                     position,
                     file.url,
-                    file.title,
+                    escape(str(file.title or "Unknown Title")),
                     file.duration,
                     m.from_user.mention,
                 ),
@@ -115,19 +138,25 @@ async def play_hndlr(
                 )
             return
 
+    # Queue remaining playlist tracks BEFORE starting playback so play_next
+    # can seamlessly continue even if the first track fails to download.
+    added = playlist_to_queue(m.chat.id, tracks) if tracks else ""
+
     if not file.file_path:
-        fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
-        if Path(fname).exists():
-            file.file_path = fname
+        cached = yt._find_cached_file(file.id, video)
+        if cached:
+            file.file_path = cached
         else:
-            await sent.edit_text(m.lang["play_downloading"])
-            file.file_path = await yt.download(file.id, video=video)
+            fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
+            if Path(fname).exists():
+                file.file_path = fname
+            else:
+                await sent.edit_text(m.lang["play_downloading"])
+                file.file_path = await yt.download(file.id, video=video)
 
     await anon.play_media(chat_id=m.chat.id, message=sent, media=file)
-    if not tracks:
-        return
-    added = playlist_to_queue(m.chat.id, tracks)
-    await app.send_message(
-        chat_id=m.chat.id,
-        text=m.lang["playlist_queued"].format(len(tracks)) + added,
-    )
+    if tracks and added:
+        await app.send_message(
+            chat_id=m.chat.id,
+            text=m.lang["playlist_queued"].format(len(tracks)) + added,
+        )
