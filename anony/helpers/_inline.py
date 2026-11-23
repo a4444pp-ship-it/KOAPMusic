@@ -78,11 +78,14 @@ class Inline:
         if not remove:
             keyboard.append([
                 self.ikb(
-                    text=f"AUTOPLAY {'ON' if autoplay else 'OFF'}",
-                    callback_data=f"controls autoplay {chat_id}",
-                    style="success" if autoplay else "danger",
+    text=f"AUTOPLAY {'ON' if autoplay else 'OFF'}",
+    callback_data=f"controls autoplay {chat_id}",
+    style="success" if autoplay else "danger",
+    icon_custom_emoji_id=(
+        "6230917224782108625" if autoplay
+        else "5834629976883732083"
+    ),
                 )
-            ])
 
         keyboard.append([
             self.ikb(
