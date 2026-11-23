@@ -20,84 +20,83 @@ class Inline:
         ])
 
     def controls(
-    self,
-    chat_id: int,
-    status: str = None,
-    timer: str = None,
-    remove: bool = False,
-    autoplay: bool = False,
-) -> types.InlineKeyboardMarkup:
-    keyboard = []
+        self,
+        chat_id: int,
+        status: str = None,
+        timer: str = None,
+        remove: bool = False,
+        autoplay: bool = False,
+    ) -> types.InlineKeyboardMarkup:
+        keyboard = []
 
-    if status:
-        keyboard.append([
-            self.ikb(
-                text=status,
-                callback_data=f"controls status {chat_id}",
-                style="primary",
-            )
-        ])
-    elif timer:
-        keyboard.append([
-            self.ikb(
-                text=timer,
-                callback_data=f"controls status {chat_id}",
-                style="primary",
-            )
-        ])
+        if status:
+            keyboard.append([
+                self.ikb(
+                    text=status,
+                    callback_data=f"controls status {chat_id}",
+                    style="primary",
+                )
+            ])
+        elif timer:
+            keyboard.append([
+                self.ikb(
+                    text=timer,
+                    callback_data=f"controls status {chat_id}",
+                    style="primary",
+                )
+            ])
 
-    if not remove:
-        keyboard.append([
-            self.ikb(
-                text="▷",
-                callback_data=f"controls resume {chat_id}",
-                style="success",
-            ),
-            self.ikb(
-                text="II",
-                callback_data=f"controls pause {chat_id}",
-                style="danger",
-            ),
-            self.ikb(
-                text="⥁",
-                callback_data=f"controls replay {chat_id}",
-                style="primary",
-            ),
-            self.ikb(
-                text="‣‣I",
-                callback_data=f"controls skip {chat_id}",
-                style="primary",
-            ),
-            self.ikb(
-                text="▢",
-                callback_data=f"controls stop {chat_id}",
-                style="danger",
-            ),
-        ])
-
-        keyboard.append([
-            self.ikb(
-                text=f"AUTOPLAY {'ON' if autoplay else 'OFF'}",
-                callback_data=f"controls autoplay {chat_id}",
-                style="success" if autoplay else "danger",
-                icon_custom_emoji_id=(
-                    "6230917224782108625"
-                    if autoplay
-                    else "5834629976883732083"
+        if not remove:
+            keyboard.append([
+                self.ikb(
+                    text="▷",
+                    callback_data=f"controls resume {chat_id}",
+                    style="success",
                 ),
+                self.ikb(
+                    text="II",
+                    callback_data=f"controls pause {chat_id}",
+                    style="danger",
+                ),
+                self.ikb(
+                    text="⥁",
+                    callback_data=f"controls replay {chat_id}",
+                    style="primary",
+                ),
+                self.ikb(
+                    text="‣‣I",
+                    callback_data=f"controls skip {chat_id}",
+                    style="primary",
+                ),
+                self.ikb(
+                    text="▢",
+                    callback_data=f"controls stop {chat_id}",
+                    style="danger",
+                ),
+            ])
+
+            keyboard.append([
+                self.ikb(
+                    text=f"AUTOPLAY {'ON' if autoplay else 'OFF'}",
+                    callback_data=f"controls autoplay {chat_id}",
+                    style="success" if autoplay else "danger",
+                    icon_custom_emoji_id=(
+                        "6230917224782108625" if autoplay
+                        else "5834629976883732083"
+                    ),
+                )
+            ])
+
+        keyboard.append([
+            self.ikb(
+                text="Close",
+                callback_data=f"controls close {chat_id}",
+                style="danger",
+                icon_custom_emoji_id="6269316311172518259",
             )
         ])
 
-    keyboard.append([
-        self.ikb(
-            text="Close",
-            callback_data=f"controls close {chat_id}",
-            style="danger",
-            icon_custom_emoji_id="6269316311172518259",
-        )
-    ])
-
-    return self.ikm(keyboard)
+        return self.ikm(keyboard)
 
     def help_markup(
         self, _lang: dict, back: bool = False
