@@ -7,6 +7,7 @@ import os
 import random
 import re
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import aiohttp
 import yt_dlp
@@ -24,9 +25,25 @@ except Exception:
 DEFAULT_XENO_API_URL = "https://host-repository.vercel.app/harshmanjjhi/xenobot2/url/"
 
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+_PLAYLIST_ID_RE = re.compile(r"^[A-Za-z0-9_-]{2,}$")
 _URL_VIDEO_ID_RE = re.compile(
     r"(?:youtube\.com/(?:watch\?(?:.*&)?v=|shorts/|embed/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})"
 )
+_YT_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+    "www.youtu.be",
+}
+_UNAVAILABLE_TITLES = {
+    "[private video]",
+    "[deleted video]",
+    "[unavailable video]",
+    "private video",
+    "deleted video",
+}
 
 
 def _get_xeno_api_url() -> str:
@@ -71,15 +88,31 @@ class YouTube:
 
         self.regex = re.compile(
             r"(https?://)?(www\.|m\.|music\.)?"
-            r"(youtube\.com/(watch\?v=|shorts/|playlist\?list=)|youtu\.be/)"
-            r"([A-Za-z0-9_-]{11}|PL[A-Za-z0-9_-]+)([&?][^\s]*)?"
+            r"(youtube\.com/(watch\?(?:.*&)?(?:v=|list=)|shorts/|live/|embed/|playlist\?(?:.*&)?list=)|youtu\.be/)"
+            r"([A-Za-z0-9_-]{2,})([&?][^\s]*)?"
         )
 
         self.iregex = re.compile(
-            r"https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)"
-            r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
-            r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
+            r"https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)\S*"
         )
+
+    def _parse_yt_url(self, url: str):
+        if not url or not isinstance(url, str):
+            return None
+        candidate = url.strip()
+        if not candidate:
+            return None
+        if "://" not in candidate:
+            candidate = f"https://{candidate}"
+        try:
+            parsed = urlsplit(candidate)
+        except Exception:
+            return None
+        host = (parsed.hostname or "").lower()
+        if host not in _YT_HOSTS:
+            return None
+        query = parse_qs(parsed.query, keep_blank_values=False)
+        return host, parsed.path or "", query
 
     def extract_video_id(self, value: str) -> str | None:
         if not value:
@@ -95,7 +128,53 @@ class YouTube:
         if match:
             return match.group(1)
 
+        parsed = self._parse_yt_url(value)
+        if parsed:
+            host, path, query = parsed
+            v_vals = query.get("v")
+            if v_vals and _VIDEO_ID_RE.fullmatch(v_vals[0]):
+                return v_vals[0]
+            if host.endswith("youtu.be"):
+                seg = path.strip("/").split("/")[0]
+                if _VIDEO_ID_RE.fullmatch(seg):
+                    return seg
+
         return None
+
+    def extract_playlist_id(self, value: str) -> str | None:
+        parsed = self._parse_yt_url(value)
+        if not parsed:
+            return None
+
+        _, path, query = parsed
+        list_vals = query.get("list")
+        if list_vals:
+            list_id = list_vals[0].strip()
+            if _PLAYLIST_ID_RE.fullmatch(list_id):
+                return list_id
+
+        # Support YouTube Music browse playlist links like /browse/VLPL...
+        if path.startswith("/browse/VL"):
+            candidate = path[len("/browse/VL"):].split("/")[0].strip()
+            if _PLAYLIST_ID_RE.fullmatch(candidate):
+                return candidate
+
+        return None
+
+    def is_playlist(self, url: str) -> bool:
+        return bool(self.extract_playlist_id(url))
+
+    def _normalize_playlist_url(self, url: str) -> tuple[str, str | None]:
+        list_id = self.extract_playlist_id(url)
+        if not list_id:
+            return url, None
+
+        vid = self.extract_video_id(url)
+        # Auto-generated YouTube Mixes (RD...) need the seed video id
+        if list_id.startswith("RD") and not list_id.startswith("RDCLAK") and vid:
+            return f"https://www.youtube.com/watch?v={vid}&list={list_id}", list_id
+
+        return f"https://www.youtube.com/playlist?list={list_id}", list_id
 
     async def resolve_video_id(self, value: str) -> str | None:
         vid = self.extract_video_id(value)
@@ -177,10 +256,16 @@ class YouTube:
         logger.info(f"Cookies saved in {self.cookie_dir}.")
 
     def valid(self, url: str) -> bool:
+        if not self._parse_yt_url(url):
+            return False
+        if self.extract_playlist_id(url) or self.extract_video_id(url):
+            return True
         return bool(re.match(self.regex, url))
 
     def invalid(self, url: str) -> bool:
-        return bool(re.match(self.iregex, url))
+        if not self._parse_yt_url(url):
+            return False
+        return not self.valid(url)
 
     async def search(
         self,
@@ -218,10 +303,10 @@ class YouTube:
             return Track(
                 id=data.get("id"),
                 channel_name=data.get("channel", {}).get("name"),
-                duration=data.get("duration"),
+                duration=data.get("duration") or "0:00",
                 duration_sec=utils.to_seconds(data.get("duration")),
                 message_id=m_id,
-                title=title[:25],
+                title=title[:50],
                 thumbnail=thumbnail,
                 url=data.get("link"),
                 view_count=data.get("viewCount", {}).get("short"),
@@ -239,18 +324,26 @@ class YouTube:
     ) -> list[Track]:
 
         """
-        Fetch YouTube playlists using py_yt first
-        and yt-dlp as fallback.
+        Fetch full YouTube / YouTube Music playlists using:
+        1. py_yt Playlist (with pagination)
+        2. yt-dlp cookieless flat extraction
+        3. yt-dlp cookie fallback
 
         limit = 0 means unlimited application-level playlist limit.
         """
 
+        target_url, _ = self._normalize_playlist_url(url)
         tracks: list[Track] = []
         seen_ids: set[str] = set()
 
         def _duration_text(seconds):
             if seconds is None:
                 return None
+
+            if isinstance(seconds, str):
+                cleaned = seconds.strip()
+                if ":" in cleaned:
+                    return cleaned
 
             try:
                 seconds = max(0, int(float(seconds)))
@@ -269,26 +362,28 @@ class YouTube:
             if not isinstance(data, dict):
                 return None
 
-            video_id = data.get("id") or data.get("video_id")
+            raw_id = (
+                data.get("id")
+                or data.get("video_id")
+                or data.get("url")
+                or data.get("link")
+            )
+            video_id = self.extract_video_id(str(raw_id or ""))
 
             if not video_id:
                 return None
 
-            video_id = str(video_id)
-
-            if not _VIDEO_ID_RE.fullmatch(video_id):
+            title = str(data.get("title") or "Unknown Title").strip()
+            if title.lower() in _UNAVAILABLE_TITLES:
                 return None
 
-            title = str(data.get("title") or "Unknown Title")
-
             duration_raw = data.get("duration")
-            duration_text = _duration_text(duration_raw)
+            if duration_raw is None:
+                duration_raw = data.get("duration_string")
+            duration_text = _duration_text(duration_raw) or "0:00"
 
             try:
-                duration_sec = (
-                    utils.to_seconds(duration_text)
-                    if duration_text else 0
-                )
+                duration_sec = utils.to_seconds(duration_text)
             except Exception:
                 try:
                     duration_sec = int(float(duration_raw or 0))
@@ -311,27 +406,22 @@ class YouTube:
             thumbnail = data.get("thumbnail") or ""
             thumbnails = data.get("thumbnails") or []
 
-            if not thumbnail and isinstance(thumbnails, list):
-                if thumbnails:
-                    last_thumb = thumbnails[-1]
+            if not thumbnail and isinstance(thumbnails, list) and thumbnails:
+                last_thumb = thumbnails[-1]
+                if isinstance(last_thumb, dict):
+                    thumbnail = last_thumb.get("url") or ""
 
-                    if isinstance(last_thumb, dict):
-                        thumbnail = last_thumb.get("url") or ""
+            if not thumbnail:
+                thumbnail = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-            link = (
-                data.get("link")
-                or data.get("webpage_url")
-                or f"{self.base}{video_id}"
-            )
-
-            link = str(link).split("&list=")[0].split("?list=")[0]
+            link = f"{self.base}{video_id}"
 
             return Track(
                 id=video_id,
                 channel_name=str(channel),
                 duration=duration_text,
                 duration_sec=duration_sec,
-                title=title[:25],
+                title=title[:50],
                 thumbnail=str(thumbnail).split("?")[0],
                 url=link,
                 user=user,
@@ -339,29 +429,49 @@ class YouTube:
                 video=video,
             )
 
-        # TIER 1: py_yt playlist parser
-
-        try:
-            playlist_data = await Playlist.get(url)
-
-            if isinstance(playlist_data, dict):
-                items = playlist_data.get("videos") or []
-            else:
-                items = (
-                    getattr(playlist_data, "videos", None)
-                    or []
-                )
-
-            for item in items:
-                track = _normalise_item(item)
-
+        def _append_items(items) -> bool:
+            for item in items or []:
+                if not item:
+                    continue
+                track = _normalise_item(dict(item) if isinstance(item, dict) else item)
                 if track and track.id not in seen_ids:
                     tracks.append(track)
                     seen_ids.add(track.id)
+                    if limit and limit > 0 and len(tracks) >= limit:
+                        return True
+            return False
 
-                    if limit and limit > 0:
-                        if len(tracks) >= limit:
-                            return tracks
+        # TIER 1: py_yt playlist parser (with continuation pagination)
+        try:
+            pl = Playlist(target_url)
+            if hasattr(pl, "init"):
+                await pl.init()
+
+            items = getattr(pl, "videos", None) or []
+            reached_limit = _append_items(items)
+
+            pages = 0
+            while (
+                not reached_limit
+                and getattr(pl, "hasMoreVideos", False)
+                and hasattr(pl, "getNextVideos")
+                and pages < 20
+            ):
+                pages += 1
+                prev_count = len(getattr(pl, "videos", []) or [])
+                await pl.getNextVideos()
+                current_videos = getattr(pl, "videos", []) or []
+                if len(current_videos) <= prev_count:
+                    break
+                reached_limit = _append_items(current_videos[prev_count:])
+
+            if not tracks:
+                playlist_data = await Playlist.get(target_url)
+                if isinstance(playlist_data, dict):
+                    fallback_items = playlist_data.get("videos") or []
+                else:
+                    fallback_items = getattr(playlist_data, "videos", None) or []
+                _append_items(fallback_items)
 
             if tracks:
                 return tracks
@@ -373,61 +483,53 @@ class YouTube:
                 ex
             )
 
-        # TIER 2: yt-dlp playlist fallback
+        # TIER 2 & 3: yt-dlp flat extraction (cookieless -> cookie fallback)
+        def _extract_playlist(cookie: str | None = None):
+            options = {
+                "extract_flat": "in_playlist",
+                "noplaylist": False,
+                "skip_download": True,
+                "quiet": True,
+                "no_warnings": True,
+                "ignoreerrors": True,
+                "geo_bypass": True,
+                "nocheckcertificate": True,
+                "logger": DummyLogger(),
+                "socket_timeout": 20,
+                "extractor_retries": 3,
+            }
 
-        try:
-            def _extract_playlist():
-                options = {
-                    "extract_flat": "in_playlist",
-                    "skip_download": True,
-                    "quiet": True,
-                    "no_warnings": True,
-                    "ignoreerrors": True,
-                    "geo_bypass": True,
-                    "socket_timeout": 20,
-                    "extractor_retries": 3,
-                }
+            if cookie:
+                options["cookiefile"] = cookie
 
-                if limit and limit > 0:
-                    options["playlist_items"] = f"1:{limit}"
+            if limit and limit > 0:
+                options["playlist_items"] = f"1:{limit}"
 
-                with yt_dlp.YoutubeDL(options) as ydl:
-                    return ydl.extract_info(
-                        url,
-                        download=False
-                    )
+            with yt_dlp.YoutubeDL(options) as ydl:
+                return ydl.extract_info(
+                    target_url,
+                    download=False
+                )
 
-            info = await asyncio.to_thread(_extract_playlist)
+        for use_cookie in (False, True):
+            cookie_file = self.get_cookies() if use_cookie else None
+            if use_cookie and not cookie_file:
+                break
 
-            entries = (info or {}).get("entries") or []
-
-            for item in entries:
-                if not item:
-                    continue
-
-                item = dict(item)
-
-                if not item.get("link") and item.get("id"):
-                    item["link"] = (
-                        f"{self.base}{item['id']}"
-                    )
-
-                track = _normalise_item(item)
-
-                if track and track.id not in seen_ids:
-                    tracks.append(track)
-                    seen_ids.add(track.id)
-
-                    if limit and limit > 0:
-                        if len(tracks) >= limit:
-                            break
-
-        except Exception as ex:
-            logger.error(
-                "yt-dlp playlist fallback failed (%s): %s",
-                type(ex).__name__,
-                ex
-            )
+            try:
+                info = await asyncio.to_thread(_extract_playlist, cookie_file)
+                entries = (info or {}).get("entries") or []
+                _append_items(entries)
+                if tracks:
+                    return tracks
+            except Exception as ex:
+                mode = "cookie" if cookie_file else "cookieless"
+                logger.error(
+                    "yt-dlp playlist (%s) failed (%s): %s",
+                    mode,
+                    type(ex).__name__,
+                    ex
+                )
 
         if not tracks:
             logger.error(
