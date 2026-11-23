@@ -3,6 +3,7 @@
 # This file is part of AnonXMusic
 
 import os
+from typing import Any
 import aiohttp
 
 from PIL import (
@@ -27,6 +28,7 @@ class Thumbnail:
         self.blue = (0, 150, 255)
         self.cyan = (0, 225, 255)
         self.bright_cyan = (110, 240, 255)
+        self.light_blue = (145, 215, 255)
         self.white = (248, 252, 255)
         self.soft_white = (225, 238, 248)
         self.muted = (175, 205, 232)
@@ -82,6 +84,37 @@ class Thumbnail:
             f.write(data)
 
         return output_path
+
+    def format_views(self, views: Any) -> str:
+        if views is None or views == "":
+            return "Views: N/A"
+
+        raw = str(views).strip()
+        if raw.lower().startswith("views:"):
+            raw = raw.split(":", 1)[1].strip()
+
+        cleaned = raw.replace(",", "").replace(" ", "")
+        try:
+            num = int(float(cleaned))
+        except (ValueError, TypeError):
+            return f"Views: {raw}"
+
+        if num < 0:
+            return "Views: N/A"
+        if num >= 1_000_000_000:
+            return f"Views: {num / 1_000_000_000:.1f}B"
+        if num >= 1_000_000:
+            return f"Views: {num / 1_000_000:.1f}M"
+        if num >= 1_000:
+            return f"Views: {num / 1_000:.1f}K"
+        return f"Views: {num}"
+
+    def _get_song_views(self, song: Track) -> str:
+        for attr in ("views", "view_count", "view"):
+            val = getattr(song, attr, None)
+            if val is not None and val != "":
+                return self.format_views(val)
+        return "Views: N/A"
 
     def rounded_cover(self, image: Image.Image, radius: int = 22) -> Image.Image:
         image = image.convert("RGBA")
@@ -143,6 +176,36 @@ class Thumbnail:
         rays = rays.filter(ImageFilter.GaussianBlur(14))
         image.alpha_composite(rays)
 
+    def draw_airpods_badge(
+        self, draw: ImageDraw.ImageDraw, x0: int, y0: int, x1: int, y1: int
+    ) -> None:
+        draw.rounded_rectangle(
+            (x0, y0, x1, y1),
+            radius=(y1 - y0) // 2,
+            fill=self.badge_fill,
+            outline=self.glass_border,
+            width=2,
+        )
+
+        # Left & right AirPods icon
+        cy = (y0 + y1) // 2
+        lx = x0 + 18
+        rx = lx + 20
+        top_y = cy - 12
+
+        draw.ellipse((lx, top_y, lx + 12, top_y + 15), outline=self.light_blue, width=2)
+        draw.rounded_rectangle((lx + 8, top_y + 11, lx + 12, top_y + 25), radius=2, fill=self.light_blue)
+
+        draw.ellipse((rx, top_y, rx + 12, top_y + 15), outline=self.light_blue, width=2)
+        draw.rounded_rectangle((rx, top_y + 11, rx + 4, top_y + 25), radius=2, fill=self.light_blue)
+
+        draw.text(
+            (rx + 20, y0 + 11),
+            "AirPods",
+            font=self.font_badge,
+            fill=self.light_blue,
+        )
+
     def draw_header_and_eq(self, image: Image.Image) -> None:
         layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(layer)
@@ -163,21 +226,9 @@ class Thumbnail:
             fill=self.bright_cyan,
         )
 
-        # Top-right compact equalizer bars
-        heights = [
-            18, 28, 40, 26, 50, 34, 58, 30, 46, 22, 54, 36,
-            26, 48, 32, 56, 38, 24, 44, 28, 34, 20, 26, 16,
-        ]
-        start_x = 910
-        base_y = 88
-        for idx, h in enumerate(heights):
-            x = start_x + idx * 12
-            bar_color = self.bright_cyan if h >= 46 else self.cyan
-            draw.rounded_rectangle(
-                (x, base_y - h, x + 6, base_y),
-                radius=3,
-                fill=(bar_color[0], bar_color[1], bar_color[2], 205),
-            )
+        # Top-right AirPods badge (waveform removed)
+        w, _ = self.size
+        self.draw_airpods_badge(draw, w - 238, 36, w - 52, 82)
 
         image.alpha_composite(layer)
 
@@ -339,7 +390,7 @@ class Thumbnail:
             light_blue_tint = Image.new("RGBA", self.size, (16, 78, 152, 72))
             image.alpha_composite(light_blue_tint)
 
-            # 2. Header & equalizer
+            # 2. Header & AirPods badge
             self.draw_header_and_eq(image)
 
             # 3. Ambient glow & compact floating glass card
@@ -481,12 +532,12 @@ class Thumbnail:
                 width=2,
             )
 
-            # Left label & right duration
+            # Left light-blue KOAPMusic label & right duration + dynamic views
             draw.text(
                 (prog_left, 372),
                 "KOAPMusic",
                 font=self.font_small,
-                fill=self.soft_white,
+                fill=self.light_blue,
             )
 
             duration_str = str(song.duration or "00:00")
@@ -498,10 +549,19 @@ class Thumbnail:
                 fill=self.soft_white,
             )
 
+            views_str = self._get_song_views(song)
+            views_w = draw.textbbox((0, 0), views_str, font=self.font_small)[2]
+            draw.text(
+                (prog_right - views_w, 396),
+                views_str,
+                font=self.font_small,
+                fill=self.light_blue,
+            )
+
             # Compact transport controls & volume slider
             center_x = (prog_left + prog_right) // 2
-            self.draw_transport_controls(draw, center_x, 434)
-            self.draw_volume_bar(draw, center_x, 496)
+            self.draw_transport_controls(draw, center_x, 444)
+            self.draw_volume_bar(draw, center_x, 504)
 
             # 6. Bottom corner credits (left & right corners)
             credit_y = h - 38
