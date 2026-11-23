@@ -4,10 +4,13 @@
 
 
 import re
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pyrogram import enums, types
 
 from anony import app
+
+_TRACKING_PARAMS = {"si", "pp", "feature"}
 
 
 class Utilities:
@@ -33,10 +36,46 @@ class Utilities:
         else:
             return f"{bytes / 1024:.2f} KB"
 
-    def to_seconds(self, time: str) -> int:
-        parts = [int(p) for p in time.strip().split(":")]
+    def to_seconds(self, time: str | int | float | None) -> int:
+        if time is None:
+            return 0
+        if isinstance(time, (int, float)):
+            return max(0, int(time))
+        text = str(time).strip()
+        if not text:
+            return 0
+        try:
+            parts = [int(p) for p in text.split(":")]
+        except ValueError:
+            return 0
         return sum(value * 60**i for i, value in enumerate(reversed(parts)))
 
+    def _clean_url(self, link: str) -> str:
+        link = link.strip()
+        if not link:
+            return link
+        if "://" not in link:
+            link = f"https://{link}"
+        try:
+            parsed = urlsplit(link)
+            if parsed.query:
+                filtered = [
+                    (k, v)
+                    for k, v in parse_qsl(parsed.query, keep_blank_values=False)
+                    if k.lower() not in _TRACKING_PARAMS
+                ]
+                return urlunsplit(
+                    (
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        urlencode(filtered, doseq=True),
+                        parsed.fragment,
+                    )
+                )
+        except Exception:
+            pass
+        return link
 
     def get_url(self, message_1: types.Message) -> str | None:
         link = None
@@ -59,10 +98,12 @@ class Utilities:
                     link = text[entity.offset: entity.offset + entity.length]
                     break
 
-        if link:
-            return link.split("&si")[0].split("?si")[0]
-        return None
+            if link:
+                break
 
+        if link:
+            return self._clean_url(link)
+        return None
 
     async def extract_user(self, msg: types.Message) -> types.User | None:
         if msg.reply_to_message:
@@ -83,7 +124,6 @@ class Utilities:
                 pass
 
         return None
-
 
     async def play_log(
         self,
